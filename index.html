@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VAK</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      font-size: 16px;
+      --bgDark: #0a0a0a;
+      --bgPanel: rgba(20, 25, 35, 0.75);
+      --bgPanelSolid: #141923;
+      --bgItem: rgba(0, 0, 0, 0.2);
+      --bgItemHover: rgba(0, 0, 0, 0.4);
+      --textPrimary: #f0f5fa;
+      --textSecondary: #a0b0c0;
+      --textTertiary: #708090;
+      --borderColor: rgba(255, 255, 255, 0.1);
+      --accentPrimary: #ffffff;
+      --accentPrimaryHover: #eeeeee;
+      --fontSans: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      font-size: 100%;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--bgDark);
+      font-family: var(--fontSans);
+      color: var(--textPrimary);
+      font-weight: 400;
+      letter-spacing: 0.0125rem;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .controls {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      z-index: 1002;
+      background: var(--bgPanel);
+      backdrop-filter: blur(0.75rem);
+      color: var(--textPrimary);
+      border-radius: 0.75rem;
+      border: 1px solid var(--borderColor);
+      box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.3);
+      width: 18.75rem;
+      max-height: 85vh;
+      overflow: hidden;
+      transition: all 0.3s ease-out;
+      font-size: 0.8125rem;
+    }
+
+    .controlHeader {
+      padding: 0.75rem 1rem;
+      background: rgba(0, 0, 0, 0.1);
+      border-bottom: 1px solid var(--borderColor);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.3s ease-out;
+    }
+
+    .controlHeader h3 {
+      margin: 0;
+      font-family: var(--fontSans);
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--textPrimary);
+      text-transform: uppercase;
+      letter-spacing: 0.05rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .controlToggleIcon {
+      font-size: 0.875rem;
+      font-family: monospace;
+      font-weight: 400;
+      color: var(--textSecondary);
+    }
+
+    .controlContent {
+      max-height: 75vh;
+      overflow-y: auto;
+      transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+      padding: 1rem;
+    }
+
+    .controls.collapsed .controlContent {
+      max-height: 0;
+      padding: 0 1rem;
+    }
+
+    .controlGroup {
+      margin-bottom: 0.75rem;
+    }
+
+    .controlGroup label {
+      display: block;
+      margin-bottom: 0.375rem;
+      font-size: 0.6875rem;
+      color: var(--textSecondary);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05rem;
+    }
+
+    .controlGroup input[type="range"] {
+      width: 100%;
+      height: 0.25rem;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 0.125rem;
+      outline: none;
+      margin-bottom: 0.25rem;
+      appearance: none;
+      border: 1px solid var(--borderColor);
+    }
+
+    .controlGroup input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 0.875rem;
+      height: 0.875rem;
+      background: var(--textPrimary);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .controlGroup input[type="range"]::-webkit-slider-thumb:hover {
+      background: var(--accentPrimary);
+    }
+
+    .controlGroup input[type="range"]::-moz-range-thumb {
+      width: 0.875rem;
+      height: 0.875rem;
+      background: var(--textPrimary);
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      transition: background 0.2s ease;
+    }
+
+    .controlGroup input[type="range"]::-moz-range-thumb:hover {
+      background: var(--accentPrimary);
+    }
+
+    .controlGroup button,
+    .labelToggle,
+    .followSunBtn {
+      background: var(--bgPanelSolid);
+      color: var(--textSecondary);
+      border: 1px solid var(--borderColor);
+      padding: 0.375rem 0.625rem;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      margin-right: 0.25rem;
+      margin-bottom: 0.25rem;
+      font-size: 0.75rem;
+      font-family: var(--fontSans);
+      font-weight: 600;
+      text-transform: none;
+      letter-spacing: 0;
+      transition: all 0.2s ease-out;
+    }
+
+    .controlGroup button:hover,
+    .labelToggle:hover,
+    .followSunBtn:hover {
+      background: var(--borderColor);
+      color: var(--textPrimary);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .controlGroup button.active,
+    .labelToggle.active {
+      background: var(--accentPrimary);
+      color: var(--bgDark);
+      border-color: var(--accentPrimary);
+      font-weight: 700;
+    }
+
+    #stopFollowBtn.active {
+      background: #e74c3c;
+      border-color: #e74c3c;
+      color: var(--textPrimary);
+    }
+
+    .valueDisplay {
+      font-family: var(--fontSans);
+      font-size: 0.6875rem;
+      color: var(--textSecondary);
+      font-weight: 500;
+    }
+
+    .labelToggle,
+    .followSunBtn {
+      width: 100%;
+      margin-top: 0.3125rem;
+    }
+
+    .planetItem {
+      padding: 0.625rem 1rem;
+      border-bottom: 1px solid var(--borderColor);
+      cursor: pointer;
+      transition: all 0.2s ease-out;
+      font-size: 0.8125rem;
+    }
+
+    .planetItem:hover {
+      background: #ffffff;
+      color: #000000;
+    }
+
+    .planetItem:hover strong {
+      color: #000000;
+    }
+
+    .planetItem:hover small {
+      color: #333333;
+    }
+
+    .planetItem:last-child {
+      border-bottom: none;
+    }
+
+    .planetItem strong {
+      font-family: var(--fontSans);
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--textPrimary);
+    }
+
+    .planetItem small {
+      font-family: var(--fontSans);
+      font-weight: 400;
+      color: var(--textSecondary);
+      opacity: 0.9;
+    }
+
+    .categoryHeader {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--textPrimary);
+      padding: 0.5rem 1rem;
+      margin: 0.75rem 0 0.25rem 0;
+      font-family: var(--fontSans);
+      font-size: 0.6875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.075rem;
+      border-radius: 0.375rem;
+      border: 1px solid var(--borderColor);
+    }
+
+    .planetLabel,
+    .moonLabel {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(0.25rem);
+      color: #000000;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.3125rem;
+      font-family: var(--fontSans);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: none;
+      letter-spacing: 0;
+      pointer-events: none;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      z-index: 1000;
+      transition: opacity 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .moonLabel {
+      font-size: 0.625rem;
+      padding: 0.125rem 0.3125rem;
+      z-index: 999;
+    }
+
+    ::-webkit-scrollbar {
+      width: 0.375rem;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 0.1875rem;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--textTertiary);
+      border-radius: 0.1875rem;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--textSecondary);
+    }
+
+    .uiHidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-1.25rem);
+      transition: all 0.3s ease-out;
+    }
+
+    #showUiBtn {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: var(--bgPanel);
+      backdrop-filter: blur(0.75rem);
+      color: var(--textPrimary);
+      border: 1px solid var(--borderColor);
+      border-radius: 0.5rem;
+      padding: 0.625rem 0.875rem;
+      font-family: var(--fontSans);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: none;
+      transition: all 0.3s ease-out;
+      z-index: 1001;
+    }
+
+    #showUiBtn:hover {
+      background: var(--borderColor);
+      transform: scale(1.03);
+    }
+
+    .planetInfoCard {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--bgPanel);
+      backdrop-filter: blur(1rem);
+      color: var(--textPrimary);
+      border-radius: 1rem;
+      border: 1px solid var(--borderColor);
+      box-shadow: 0 0.75rem 2.5rem rgba(0, 0, 0, 0.5);
+      width: 31.25rem;
+      max-width: 90vw;
+      max-height: 85vh;
+      z-index: 2000;
+      font-family: var(--fontSans);
+      display: none;
+      animation: slideIn 0.3s ease-out;
+      overflow: hidden;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translate(-50%, -55%);
+      }
+
+      to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+      }
+    }
+
+    .planetInfoHeader {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--borderColor);
+      position: sticky;
+      top: 0;
+      z-index: 2001;
+    }
+
+    .planetInfoTitle {
+      margin: 0;
+      font-family: var(--fontSans);
+      font-weight: 700;
+      font-size: 1.75rem;
+      color: var(--textPrimary);
+      text-transform: uppercase;
+      letter-spacing: 0.09375rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    #planetIcon {
+      display: none;
+    }
+
+    .planetTypeBadge {
+      background: var(--accentPrimary);
+      color: var(--bgDark);
+      padding: 0.3125rem 0.625rem;
+      border-radius: 1.25rem;
+      font-family: var(--fontSans);
+      font-size: 0.6875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03125rem;
+    }
+
+    .closeBtn {
+      position: absolute;
+      top: 1.125rem;
+      right: 1.125rem;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      width: 2.125rem;
+      height: 2.125rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+    }
+
+    .closeBtn::before,
+    .closeBtn::after {
+      content: '';
+      position: absolute;
+      width: 1.125rem;
+      height: 0.125rem;
+      background-color: var(--textSecondary);
+      transition: all 0.3s ease;
+    }
+
+    .closeBtn::before {
+      transform: rotate(45deg);
+    }
+
+    .closeBtn::after {
+      transform: rotate(-45deg);
+    }
+
+    .closeBtn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(1.1);
+    }
+
+    .closeBtn:hover::before,
+    .closeBtn:hover::after {
+      background-color: var(--textPrimary);
+    }
+
+    .planetInfoContent {
+      padding: 1.5rem;
+      max-height: calc(85vh - 5rem);
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .infoSection {
+      margin-bottom: 1.5rem;
+    }
+
+    .infoSection h4 {
+      margin: 0 0 0.75rem 0;
+      font-family: var(--fontSans);
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--textPrimary);
+      text-transform: uppercase;
+      letter-spacing: 0.05rem;
+      border-bottom: 1px solid var(--borderColor);
+      padding-bottom: 0.5rem;
+    }
+
+    .infoGrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .infoItem {
+      background: var(--bgItem);
+      padding: 1rem;
+      border-radius: 0.625rem;
+      border: 1px solid var(--borderColor);
+    }
+
+    .infoItemLabel {
+      font-family: var(--fontSans);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--textSecondary);
+      text-transform: uppercase;
+      letter-spacing: 0.03125rem;
+      margin-bottom: 0.375rem;
+    }
+
+    .infoItemValue {
+      font-family: var(--fontSans);
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--textPrimary);
+      word-wrap: break-word;
+    }
+
+    .planetDescription {
+      background: var(--bgItem);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      border-left: 0.25rem solid var(--accentPrimary);
+      font-family: var(--fontSans);
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      color: var(--textSecondary);
+      margin-bottom: 1rem;
+    }
+
+    .moonsSection {
+      background: var(--bgItem);
+      padding: 0.5rem 1rem;
+      border-radius: 0.625rem;
+      border: 1px solid var(--borderColor);
+    }
+
+    .moonItem {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--borderColor);
+      font-family: var(--fontSans);
+    }
+
+    .moonItem:last-child {
+      border-bottom: none;
+    }
+
+    .moonInfoSection {
+      flex: 1;
+      padding-right: 0.5rem;
+    }
+
+    .moonName {
+      font-weight: 600;
+      color: var(--textPrimary);
+      font-size: 0.875rem;
+    }
+
+    .moonInfo {
+      font-size: 0.75rem;
+      color: var(--textSecondary);
+      text-align: left;
+    }
+
+    .moonFollowBtn {
+      margin-left: 0.625rem;
+    }
+
+    .followMoonBtn {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--textPrimary);
+      border: 1px solid var(--borderColor);
+      padding: 0.3125rem 0.625rem;
+      border-radius: 0.3125rem;
+      cursor: pointer;
+      font-family: var(--fontSans);
+      font-weight: 600;
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03125rem;
+      transition: all 0.3s ease;
+    }
+
+    .followMoonBtn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .controlsInfo {
+      background: var(--bgItem);
+      padding: 0.5rem 1rem;
+      border-radius: 0.625rem;
+      border: 1px solid var(--borderColor);
+    }
+
+    .controlItem {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--borderColor);
+      font-family: var(--fontSans);
+    }
+
+    .controlItem:last-child {
+      border-bottom: none;
+    }
+
+    .controlIcon {
+      display: none;
+    }
+
+    .controlText {
+      font-size: 0.875rem;
+      color: var(--textSecondary);
+      line-height: 1.5;
+    }
+
+    .controlText strong {
+      color: var(--textPrimary);
+      font-weight: 600;
+    }
+
+    .followPlanetBtn {
+      background: var(--accentPrimary);
+      color: var(--bgDark);
+      border: 2px solid var(--accentPrimary);
+      padding: 0.875rem 1.25rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-family: var(--fontSans);
+      font-weight: 700;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.0625rem;
+      transition: all 0.3s ease-out;
+      width: 100%;
+      margin-top: 0.9375rem;
+    }
+
+    .followPlanetBtn:hover {
+      background: var(--accentPrimaryHover);
+      border-color: var(--accentPrimaryHover);
+      color: var(--bgDark);
+      transform: scale(1.02);
+    }
+
+    .followPlanetBtn.following {
+      background: var(--textTertiary);
+      color: var(--textPrimary);
+      border-color: var(--textTertiary);
+    }
+
+    .followPlanetBtn.following:hover {
+      background: var(--textSecondary);
+      border-color: var(--textSecondary);
+      color: var(--bgDark);
+    }
+
+    @media (max-width: 600px) {
+      .controls {
+        width: calc(100vw - 2rem);
+        left: 1rem;
+        max-height: 50vh;
+      }
+
+      .controlContent {
+        max-height: calc(50vh - 3.5rem);
+      }
+
+      .planetInfoCard {
+        width: 90vw;
+        min-width: 90vw;
+        max-height: 80vh;
+      }
+
+      .planetInfoContent {
+        padding: 1rem;
+        max-height: calc(80vh - 4.5rem);
+      }
+
+      .planetInfoTitle {
+        font-size: 1.25rem;
+      }
+
+      .planetTypeBadge {
+        font-size: 0.625rem;
+        padding: 0.25rem 0.5rem;
+      }
+
+      .closeBtn {
+        top: 0.75rem;
+        right: 0.75rem;
+      }
+
+      .infoGrid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+      }
+
+      .infoItemValue {
+        font-size: 1rem;
+      }
+
+      .planetDescription {
+        font-size: 0.875rem;
+      }
+
+      .controlGroup button {
+        flex-grow: 1;
+      }
+
+      .controlGroup:nth-of-type(3) div,
+      .controlGroup:nth-of-type(5) div,
+      .controlGroup:nth-of-type(6) div {
+        display: flex;
+        flex-wrap: wrap;
+      }
+
+      .followPlanetBtn {
+        padding: 0.75rem;
+        font-size: 0.8125rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <button id="showUiBtn">Show UI</button>
+  <div class="controls collapsed" id="uiControls">
+    <div class="controlHeader" onclick="toggleControlPanel()">
+      <h3>VAK <span class="controlToggleIcon">+</span></h3>
+    </div>
+    <div class="controlContent">
+      <div class="controlGroup">
+        <label>Speed</label>
+        <input type="range" id="speedControl" min="0" max="10" step="0.1" value="0.4">
+        <span id="speedValue" class="valueDisplay">0.4x Slow</span>
+      </div>
+      <div class="controlGroup">
+        <label>Bloom</label>
+        <input type="range" id="bloomControl" min="0" max="2" step="0.1" value="0.5">
+        <span id="bloomValue" class="valueDisplay">0.5</span>
+      </div>
+      <div class="controlGroup">
+        <button id="pauseBtn">Pause</button>
+        <button id="hideUiBtn">Hide UI</button>
+      </div>
+      <div class="controlGroup">
+        <label>Toggle</label>
+        <button id="orbitsBtn" class="active">Orbits</button>
+        <button id="moonsBtn" class="active">Moons</button>
+        <button id="realAsteroidsBtn" class="active">Real Asteroids</button>
+        <button id="cometsBtn" class="active">Comets</button>
+      </div>
+      <div class="controlGroup">
+        <label>Asteroid Belts</label>
+        <button id="allAsteroidsBtn" class="active">All Belts</button>
+        <button id="mainAsteroidsBtn" class="active">Main Belt</button>
+        <button id="trojansBtn" class="active">Trojans</button>
+        <button id="kuiperBtn" class="active">Kuiper</button>
+        <button id="scatteredBtn" class="active">Scattered</button>
+      </div>
+      <div class="controlGroup">
+        <label>Celestial Bodies</label>
+        <button id="labelToggle" class="labelToggle">Show Planet Names</button>
+        <button id="moonLabelToggle" class="labelToggle">Show Moon Names</button>
+        <button id="followSunBtn" class="followSunBtn">Follow Sun</button>
+        <button id="stopFollowBtn" style="display: none; width: 100%; margin-top: 5px;" class="active">Stop
+          Follow</button>
+      </div>
+      <div id="planetList"></div>
+    </div>
+  </div>
+  <div id="planetInfoCard" class="planetInfoCard">
+    <div class="planetInfoHeader">
+      <h2 class="planetInfoTitle">
+        <span id="planetIcon"></span>
+        <span id="planetName">Saturn</span>
+        <span id="planetTypeBadge" class="planetTypeBadge">Planet</span>
+      </h2>
+      <button class="closeBtn" id="closePlanetInfo"></button>
+    </div>
+    <div class="planetInfoContent">
+      <div class="infoSection">
+        <div class="infoGrid">
+          <div class="infoItem">
+            <div class="infoItemLabel">Orbital Period</div>
+            <div class="infoItemValue" id="orbitalPeriod">29 Years</div>
+          </div>
+          <div class="infoItem">
+            <div class="infoItemLabel">Size</div>
+            <div class="infoItemValue" id="sizeRelative">1.7x Earth</div>
+          </div>
+          <div class="infoItem">
+            <div class="infoItemLabel">Distance From Sun</div>
+            <div class="infoItemValue" id="distanceFromSun">31 Au</div>
+          </div>
+          <div class="infoItem">
+            <div class="infoItemLabel">Discovery Year</div>
+            <div class="infoItemValue" id="discoveryYear">Ancient</div>
+          </div>
+        </div>
+      </div>
+      <div class="infoSection">
+        <div class="planetDescription" id="planetDescription">
+          Famous For Its Prominent Ring System! Less Dense Than Water! Has 146 Known Moons!
+        </div>
+      </div>
+      <div class="infoSection" id="moonsSection">
+        <h4>Moons (<span id="moonCount">9</span>)</h4>
+        <div class="moonsSection" id="moonsContainer">
+        </div>
+      </div>
+      <div class="infoSection">
+        <h4>Controls</h4>
+        <div class="controlsInfo">
+          <div class="controlItem">
+            <div class="controlIcon"></div>
+            <div class="controlText">
+              <strong>Mouse:</strong> Orbit Around Object
+            </div>
+          </div>
+          <div class="controlItem">
+            <div class="controlIcon"></div>
+            <div class="controlText">
+              <strong>Scroll:</strong> Zoom In/Out
+            </div>
+          </div>
+          <div class="controlItem">
+            <div class="controlIcon"></div>
+            <div class="controlText">
+              <strong>R Key:</strong> Stop Following
+            </div>
+          </div>
+          <div class="controlItem">
+            <div class="controlIcon"></div>
+            <div class="controlText">
+              <strong>O Key:</strong> Toggle Glowing Orbits
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="infoSection">
+        <button id="followPlanetBtn" class="followPlanetBtn">
+          Follow Planet
+        </button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="./main.js"></script>
+  <script>
+    function toggleControlPanel() {
+      const panel = document.getElementById('uiControls');
+      const icon = panel.querySelector('.controlToggleIcon');
+      panel.classList.toggle('collapsed');
+      if (panel.classList.contains('collapsed')) {
+        icon.textContent = '+';
+      } else {
+        icon.textContent = '-';
+      }
+    }
+  </script>
+</body>
+
+</html>
