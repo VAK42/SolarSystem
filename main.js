@@ -5,20 +5,15 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { Lensflare, LensflareElement } from "three/examples/jsm/objects/Lensflare.js";
-
-const nasaApiKey = "CH3TuB34hg317ulEggcZCMlKgCCPYQeTzdzJDNCz";
-
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000814);
 scene.fog = new THREE.Fog(0x000814, 180, 250);
-
 const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   0.1,
   1000
 );
-
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
@@ -28,30 +23,24 @@ renderer.toneMappingExposure = 1.2;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
-
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.rotateSpeed = 0.3;
 controls.zoomSpeed = 0.8;
 controls.panSpeed = 0.5;
-
 const loader = new THREE.TextureLoader();
 loader.manager.onLoad = () => console.log("All Textures Loaded!");
 loader.manager.onError = (url) => console.error("Error Loading Texture:", url);
-
 const ambientLight = new THREE.AmbientLight(new THREE.Color(0.13, 0.13, 0.13), 0.5);
 scene.add(ambientLight);
-
 const pointLight = new THREE.PointLight(new THREE.Color(1.0, 1.0, 1.0), 10.0, 1000, 0.5);
 pointLight.position.set(0, 0, 0);
 pointLight.castShadow = false;
 scene.add(pointLight);
-
 const fillLight = new THREE.PointLight(new THREE.Color(0.2, 0.4, 1.0), 2.0, 100, 1);
 fillLight.position.set(50, 50, -100);
 scene.add(fillLight);
-
 const sunMaterial = new THREE.MeshBasicMaterial({
   map: loader.load("/Sun.jpg"),
   emissive: new THREE.Color(1.5, 1.2, 0.8),
@@ -61,7 +50,6 @@ const sunMaterial = new THREE.MeshBasicMaterial({
 });
 const sun = new THREE.Mesh(new THREE.SphereGeometry(5, 64, 64), sunMaterial);
 scene.add(sun);
-
 const textureLoader = new THREE.TextureLoader();
 const textureFlare0 = textureLoader.load("/Lensflare.png");
 const textureFlare2 = textureLoader.load("/_Lensflare.png");
@@ -71,250 +59,13 @@ lensflare.addElement(new LensflareElement(textureFlare2, 128, 0.2, new THREE.Col
 lensflare.addElement(new LensflareElement(textureFlare2, 64, 0.4, new THREE.Color(0.8, 0.8, 1)));
 lensflare.addElement(new LensflareElement(textureFlare2, 32, 0.6, new THREE.Color(1, 0.8, 0.6)));
 sun.add(lensflare);
-
 function toTitleCase(str) {
   if (!str) return "";
   return str.toLowerCase().split(' ').map(function (word) {
     return (word.charAt(0).toUpperCase() + word.slice(1));
   }).join(' ');
 }
-
-async function fetchAsteroidOrbitalElements(designation = 'Ceres') {
-  const url = `https://ssd-api.jpl.nasa.gov/sbdb.api?sstr=${designation}`;
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    if (data && data.orb) {
-      const orb = data.orb;
-      return {
-        a: parseFloat(orb.a),
-        e: parseFloat(orb.e),
-        i: parseFloat(orb.i),
-        om: parseFloat(orb.om),
-        w: parseFloat(orb.w),
-        ma: parseFloat(orb.ma)
-      };
-    }
-  } catch (err) {
-    console.error('Asteroid API Error:', err);
-  }
-  return null;
-}
-
-function keplerToCartesian(orb, epochJD = 2460000) {
-  const deg2rad = Math.PI / 180;
-  const a = orb.a;
-  const e = orb.e;
-  const i = orb.i * deg2rad;
-  const om = orb.om * deg2rad;
-  const w = orb.w * deg2rad;
-  let M = orb.ma * deg2rad;
-  let E = M;
-  for (let j = 0; j < 10; j++) {
-    E = M + e * Math.sin(E);
-  }
-  const nu = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
-  const r = a * (1 - e * Math.cos(E));
-  const xOrb = r * Math.cos(nu);
-  const yOrb = r * Math.sin(nu);
-  const x = xOrb * (Math.cos(w) * Math.cos(om) - Math.sin(w) * Math.sin(om) * Math.cos(i)) - yOrb * (Math.sin(w) * Math.cos(om) + Math.cos(w) * Math.sin(om) * Math.cos(i));
-  const y = xOrb * (Math.cos(w) * Math.sin(om) + Math.sin(w) * Math.cos(om) * Math.cos(i)) + yOrb * (Math.cos(w) * Math.cos(om) * Math.cos(i) - Math.sin(w) * Math.sin(om));
-  const z = xOrb * Math.sin(w) * Math.sin(i) + yOrb * Math.cos(w) * Math.sin(i);
-  return { x, y, z };
-}
-
-async function fetchNeos() {
-  const url = `https://api.nasa.gov/neo/rest/v1/neo/browse?api_key=${nasaApiKey}`;
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    return data.near_earth_objects || [];
-  } catch (err) {
-    console.error('NEO API Error:', err);
-    return [];
-  }
-}
-
-async function fetchSentryObjects() {
-  const url = 'https://ssd-api.jpl.nasa.gov/sentry.api';
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    return data.data || [];
-  } catch (err) {
-    console.error('Sentry API Error:', err);
-    return [];
-  }
-}
-
-async function fetchComets() {
-  const url = 'https://ssd-api.jpl.nasa.gov/cad.api?body=COM';
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    return data.data || [];
-  } catch (err) {
-    console.error('Comet API Error:', err);
-    return [];
-  }
-}
-
-async function fetchFamousAsteroids() {
-  const famousAsteroidNames = [
-    'Apophis', 'Bennu', 'Ryugu', 'Didymos', 'Dimorphos', 'Itokawa',
-    'Psyche', 'Vesta', 'Ceres', 'Pallas', 'Hygiea', 'Eros', 'Gaspra',
-    'Ida', 'Mathilde', 'Steins', 'Lutetia', 'Dinkinesh', 'Toutatis',
-    'Florence', 'Icarus', 'Geographos', 'Castalia', 'Toro', 'Amor',
-    'Apollo', 'Anteros', 'Ganymed', 'Ivar', 'Daphne', 'Europa', 'Davida',
-    'Interamnia', 'Hebe', 'Iris', 'Flora', 'Metis', 'Parthenope',
-    'Eunomia', 'Juno', 'Astraea', 'Thisbe', 'Cybele', 'Herculina',
-    'Sylvia', 'Patroclus', 'Hektor', 'Euphrosyne', 'Fortuna', 'Massalia',
-    'Lutetia', 'Kleopatra', 'Dactyl', 'Linus', 'Eurybates', 'Polymele',
-    'Leucus', 'Orus', 'Donaldjohanson'
-  ];
-  const asteroidData = [];
-  for (const asteroid of famousAsteroidNames) {
-    try {
-      const orb = await fetchAsteroidOrbitalElements(asteroid);
-      if (orb) {
-        asteroidData.push({ name: asteroid, orb: orb });
-      }
-      await new Promise(resolve => setTimeout(resolve, 50));
-    } catch (error) {
-      console.error(`Error Fetching ${asteroid}:`, error);
-    }
-  }
-  return asteroidData;
-}
-
-const realAsteroids = [];
-const cometObjects = [];
-const famousAsteroids = [];
-
-async function addRealAsteroids() {
-  try {
-    const famousData = await fetchFamousAsteroids();
-    console.log(`Fetched ${famousData.length} Famous Asteroids`);
-    const auToScene = 15;
-
-    for (const data of famousData) {
-      const pos = keplerToCartesian(data.orb);
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.2 + Math.random() * 0.1, 12, 12),
-        new THREE.MeshStandardMaterial({
-          color: 0x00ff00,
-          emissive: 0x003300
-        })
-      );
-      mesh.position.set(pos.x * auToScene, pos.y * auToScene, pos.z * auToScene);
-      mesh.userData = { type: 'famous', name: data.name, data: data };
-      scene.add(mesh);
-      famousAsteroids.push(mesh);
-
-      const orbitPoints = [];
-      for (let i = 0; i <= 100; i++) {
-        const angle = (i / 100) * Math.PI * 2;
-        const fakeOrb = { ...data.orb, ma: angle * 180 / Math.PI };
-        const orbitPos = keplerToCartesian(fakeOrb);
-        orbitPoints.push(new THREE.Vector3(
-          orbitPos.x * auToScene,
-          orbitPos.y * auToScene,
-          orbitPos.z * auToScene
-        ));
-      }
-      const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
-      const orbitMaterial = new THREE.LineBasicMaterial({
-        color: 0x00ff00,
-        transparent: true,
-        opacity: 0.3
-      });
-      const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
-      scene.add(orbitLine);
-    }
-
-    const neoObjects = await fetchNeos();
-    console.log(`Fetched ${neoObjects.length} NEOs`);
-
-    for (let i = 0; i < Math.min(30, neoObjects.length); i++) {
-      const neo = neoObjects[i];
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.15 + Math.random() * 0.1, 8, 8),
-        new THREE.MeshStandardMaterial({
-          color: 0xff5555,
-          emissive: 0x330000
-        })
-      );
-      mesh.userData = { type: 'neo', data: neo };
-      scene.add(mesh);
-      realAsteroids.push(mesh);
-    }
-
-    const sentryObjects = await fetchSentryObjects();
-    console.log(`Fetched ${sentryObjects.length} Sentry Objects`);
-
-    for (let i = 0; i < Math.min(20, sentryObjects.length); i++) {
-      const obj = sentryObjects[i];
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.18 + Math.random() * 0.1, 8, 8),
-        new THREE.MeshStandardMaterial({
-          color: 0xffaa00,
-          emissive: 0x332200
-        })
-      );
-      mesh.userData = { type: 'sentry', data: obj };
-      scene.add(mesh);
-      realAsteroids.push(mesh);
-    }
-  } catch (error) {
-    console.error('Error Adding Real Asteroids:', error);
-  }
-}
-
-async function addComets() {
-  try {
-    const comets = await fetchComets();
-    console.log(`Fetched ${comets.length} Comets`);
-
-    for (let i = 0; i < Math.min(15, comets.length); i++) {
-      const comet = comets[i];
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.25, 8, 8),
-        new THREE.MeshStandardMaterial({
-          color: 0x55aaff,
-          emissive: 0x002233
-        })
-      );
-
-      const tailGeometry = new THREE.ConeGeometry(0.08, 3, 8);
-      const tailMaterial = new THREE.MeshBasicMaterial({
-        color: 0x88ccff,
-        transparent: true,
-        opacity: 0.7
-      });
-      const tail = new THREE.Mesh(tailGeometry, tailMaterial);
-      tail.rotation.z = Math.PI;
-      tail.position.x = -1.5;
-      mesh.add(tail);
-
-      const distance = 30 + Math.random() * 40;
-      const angle = Math.random() * Math.PI * 2;
-      mesh.position.set(
-        Math.cos(angle) * distance,
-        (Math.random() - 0.5) * 10,
-        Math.sin(angle) * distance
-      );
-
-      mesh.userData = { type: 'comet', data: comet };
-      scene.add(mesh);
-      cometObjects.push(mesh);
-    }
-  } catch (error) {
-    console.error('Error Adding Comets:', error);
-  }
-}
-
 const asteroidBelts = {
-  main: [],
   inner: [],
   outer: [],
   middle: [],
@@ -323,17 +74,14 @@ const asteroidBelts = {
   scattered: [],
   oort: []
 };
-
 function createEnhancedAsteroidBelt() {
   const innerCount = 150;
   const innerInnerRadius = 19.5;
   const innerOuterRadius = 21.5;
-
   for (let i = 0; i < innerCount; i++) {
     const angle = (i / innerCount) * Math.PI * 2 + Math.random() * 0.5;
     const radius = innerInnerRadius + Math.random() * (innerOuterRadius - innerInnerRadius);
     const size = 0.01 + Math.random() * 0.06;
-
     const asteroidType = Math.random();
     let color;
     if (asteroidType < 0.5) {
@@ -343,7 +91,6 @@ function createEnhancedAsteroidBelt() {
     } else {
       color = new THREE.Color(0.5, 0.4, 0.3);
     }
-
     const asteroidGeo = new THREE.SphereGeometry(size, 6, 6);
     const asteroidMat = new THREE.MeshStandardMaterial({
       color: color,
@@ -353,16 +100,13 @@ function createEnhancedAsteroidBelt() {
       metalness: asteroidType > 0.8 ? 0.3 : 0.1,
       toneMapped: false
     });
-
     const asteroid = new THREE.Mesh(asteroidGeo, asteroidMat);
     asteroid.position.x = Math.cos(angle) * radius;
     asteroid.position.z = Math.sin(angle) * radius;
     asteroid.position.y = (Math.random() - 0.5) * 0.8;
-
     asteroid.rotation.x = Math.random() * Math.PI;
     asteroid.rotation.y = Math.random() * Math.PI;
     asteroid.rotation.z = Math.random() * Math.PI;
-
     scene.add(asteroid);
     asteroidBelts.inner.push({
       mesh: asteroid,
@@ -377,16 +121,13 @@ function createEnhancedAsteroidBelt() {
       type: 'innerBelt'
     });
   }
-
   const middleCount = 200;
   const middleInnerRadius = 21.5;
   const middleOuterRadius = 23.5;
-
   for (let i = 0; i < middleCount; i++) {
     const angle = (i / middleCount) * Math.PI * 2 + Math.random() * 0.5;
     const radius = middleInnerRadius + Math.random() * (middleOuterRadius - middleInnerRadius);
     const size = 0.01 + Math.random() * 0.07;
-
     const asteroidType = Math.random();
     let color;
     if (asteroidType < 0.4) {
@@ -396,7 +137,6 @@ function createEnhancedAsteroidBelt() {
     } else {
       color = new THREE.Color(0.5, 0.4, 0.3);
     }
-
     const asteroidGeo = new THREE.SphereGeometry(size, 6, 6);
     const asteroidMat = new THREE.MeshStandardMaterial({
       color: color,
@@ -406,16 +146,13 @@ function createEnhancedAsteroidBelt() {
       metalness: asteroidType > 0.75 ? 0.3 : 0.1,
       toneMapped: false
     });
-
     const asteroid = new THREE.Mesh(asteroidGeo, asteroidMat);
     asteroid.position.x = Math.cos(angle) * radius;
     asteroid.position.z = Math.sin(angle) * radius;
     asteroid.position.y = (Math.random() - 0.5) * 1.0;
-
     asteroid.rotation.x = Math.random() * Math.PI;
     asteroid.rotation.y = Math.random() * Math.PI;
     asteroid.rotation.z = Math.random() * Math.PI;
-
     scene.add(asteroid);
     asteroidBelts.middle.push({
       mesh: asteroid,
@@ -430,16 +167,13 @@ function createEnhancedAsteroidBelt() {
       type: 'middleBelt'
     });
   }
-
   const outerCount = 150;
   const outerInnerRadius = 23.5;
   const outerOuterRadius = 25.5;
-
   for (let i = 0; i < outerCount; i++) {
     const angle = (i / outerCount) * Math.PI * 2 + Math.random() * 0.5;
     const radius = outerInnerRadius + Math.random() * (outerOuterRadius - outerInnerRadius);
     const size = 0.01 + Math.random() * 0.08;
-
     const asteroidType = Math.random();
     let color;
     if (asteroidType < 0.3) {
@@ -449,7 +183,6 @@ function createEnhancedAsteroidBelt() {
     } else {
       color = new THREE.Color(0.5, 0.4, 0.3);
     }
-
     const asteroidGeo = new THREE.SphereGeometry(size, 6, 6);
     const asteroidMat = new THREE.MeshStandardMaterial({
       color: color,
@@ -459,16 +192,13 @@ function createEnhancedAsteroidBelt() {
       metalness: asteroidType > 0.7 ? 0.3 : 0.1,
       toneMapped: false
     });
-
     const asteroid = new THREE.Mesh(asteroidGeo, asteroidMat);
     asteroid.position.x = Math.cos(angle) * radius;
     asteroid.position.z = Math.sin(angle) * radius;
     asteroid.position.y = (Math.random() - 0.5) * 1.2;
-
     asteroid.rotation.x = Math.random() * Math.PI;
     asteroid.rotation.y = Math.random() * Math.PI;
     asteroid.rotation.z = Math.random() * Math.PI;
-
     scene.add(asteroid);
     asteroidBelts.outer.push({
       mesh: asteroid,
@@ -484,17 +214,14 @@ function createEnhancedAsteroidBelt() {
     });
   }
 }
-
 function createJupiterTrojans() {
   const asteroidCount = 100;
   const jupiterDistance = 25;
-
   for (let i = 0; i < asteroidCount / 2; i++) {
     const baseAngle = Math.PI / 3;
     const angle = baseAngle + (Math.random() - 0.5) * 1.0;
     const radius = jupiterDistance + (Math.random() - 0.5) * 4;
     const size = 0.02 + Math.random() * 0.05;
-
     const asteroidGeo = new THREE.SphereGeometry(size, 6, 6);
     const asteroidMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(0.35, 0.25, 0.15),
@@ -504,12 +231,10 @@ function createJupiterTrojans() {
       metalness: 0.05,
       toneMapped: false
     });
-
     const asteroid = new THREE.Mesh(asteroidGeo, asteroidMat);
     asteroid.position.x = Math.cos(angle) * radius;
     asteroid.position.z = Math.sin(angle) * radius;
     asteroid.position.y = (Math.random() - 0.5) * 1.0;
-
     scene.add(asteroid);
     asteroidBelts.trojans.push({
       mesh: asteroid,
@@ -524,13 +249,11 @@ function createJupiterTrojans() {
       type: 'trojanL4'
     });
   }
-
   for (let i = 0; i < asteroidCount / 2; i++) {
     const baseAngle = -Math.PI / 3;
     const angle = baseAngle + (Math.random() - 0.5) * 1.0;
     const radius = jupiterDistance + (Math.random() - 0.5) * 4;
     const size = 0.02 + Math.random() * 0.05;
-
     const asteroidGeo = new THREE.SphereGeometry(size, 6, 6);
     const asteroidMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(0.35, 0.25, 0.15),
@@ -540,12 +263,10 @@ function createJupiterTrojans() {
       metalness: 0.05,
       toneMapped: false
     });
-
     const asteroid = new THREE.Mesh(asteroidGeo, asteroidMat);
     asteroid.position.x = Math.cos(angle) * radius;
     asteroid.position.z = Math.sin(angle) * radius;
     asteroid.position.y = (Math.random() - 0.5) * 1.0;
-
     scene.add(asteroid);
     asteroidBelts.trojans.push({
       mesh: asteroid,
@@ -561,17 +282,14 @@ function createJupiterTrojans() {
     });
   }
 }
-
 function createKuiperBelt() {
   const asteroidCount = 200;
   const innerRadius = 44;
   const outerRadius = 58;
-
   for (let i = 0; i < asteroidCount; i++) {
     const angle = (i / asteroidCount) * Math.PI * 2 + Math.random() * 1.0;
     const radius = innerRadius + Math.random() * (outerRadius - innerRadius);
     const size = 0.03 + Math.random() * 0.08;
-
     const asteroidType = Math.random();
     let color;
     if (asteroidType < 0.3) {
@@ -581,7 +299,6 @@ function createKuiperBelt() {
     } else {
       color = new THREE.Color(0.7, 0.5, 0.4);
     }
-
     const asteroidGeo = new THREE.SphereGeometry(size, 6, 6);
     const asteroidMat = new THREE.MeshStandardMaterial({
       color: color,
@@ -591,16 +308,13 @@ function createKuiperBelt() {
       metalness: 0.05,
       toneMapped: false
     });
-
     const asteroid = new THREE.Mesh(asteroidGeo, asteroidMat);
     asteroid.position.x = Math.cos(angle) * radius;
     asteroid.position.z = Math.sin(angle) * radius;
     asteroid.position.y = (Math.random() - 0.5) * 3.0;
-
     asteroid.rotation.x = Math.random() * Math.PI;
     asteroid.rotation.y = Math.random() * Math.PI;
     asteroid.rotation.z = Math.random() * Math.PI;
-
     scene.add(asteroid);
     asteroidBelts.kuiper.push({
       mesh: asteroid,
@@ -616,19 +330,15 @@ function createKuiperBelt() {
     });
   }
 }
-
 function createScatteredDisk() {
   const asteroidCount = 80;
   const innerRadius = 58;
   const outerRadius = 80;
-
   for (let i = 0; i < asteroidCount; i++) {
     const angle = Math.random() * Math.PI * 2;
     const radius = innerRadius + Math.random() * (outerRadius - innerRadius);
     const size = 0.04 + Math.random() * 0.1;
-
     const color = new THREE.Color(0.6, 0.3, 0.2);
-
     const asteroidGeo = new THREE.SphereGeometry(size, 6, 6);
     const asteroidMat = new THREE.MeshStandardMaterial({
       color: color,
@@ -638,16 +348,13 @@ function createScatteredDisk() {
       metalness: 0.02,
       toneMapped: false
     });
-
     const asteroid = new THREE.Mesh(asteroidGeo, asteroidMat);
     asteroid.position.x = Math.cos(angle) * radius;
     asteroid.position.z = Math.sin(angle) * radius;
     asteroid.position.y = (Math.random() - 0.5) * 10.0;
-
     asteroid.rotation.x = Math.random() * Math.PI;
     asteroid.rotation.y = Math.random() * Math.PI;
     asteroid.rotation.z = Math.random() * Math.PI;
-
     scene.add(asteroid);
     asteroidBelts.scattered.push({
       mesh: asteroid,
@@ -663,19 +370,15 @@ function createScatteredDisk() {
     });
   }
 }
-
 function createOortCloud() {
   const asteroidCount = 50;
   const innerRadius = 80;
   const outerRadius = 120;
-
   for (let i = 0; i < asteroidCount; i++) {
     const angle = Math.random() * Math.PI * 2;
     const radius = innerRadius + Math.random() * (outerRadius - innerRadius);
     const size = 0.05 + Math.random() * 0.12;
-
     const color = new THREE.Color(0.8, 0.6, 0.9);
-
     const asteroidGeo = new THREE.SphereGeometry(size, 6, 6);
     const asteroidMat = new THREE.MeshStandardMaterial({
       color: color,
@@ -685,16 +388,13 @@ function createOortCloud() {
       metalness: 0.01,
       toneMapped: false
     });
-
     const asteroid = new THREE.Mesh(asteroidGeo, asteroidMat);
     asteroid.position.x = Math.cos(angle) * radius;
     asteroid.position.z = Math.sin(angle) * radius;
     asteroid.position.y = (Math.random() - 0.5) * 20.0;
-
     asteroid.rotation.x = Math.random() * Math.PI;
     asteroid.rotation.y = Math.random() * Math.PI;
     asteroid.rotation.z = Math.random() * Math.PI;
-
     scene.add(asteroid);
     asteroidBelts.oort.push({
       mesh: asteroid,
@@ -710,13 +410,11 @@ function createOortCloud() {
     });
   }
 }
-
 createEnhancedAsteroidBelt();
 createJupiterTrojans();
 createKuiperBelt();
 createScatteredDisk();
 createOortCloud();
-
 const celestialBodies = [
   {
     name: "Mercury",
@@ -1096,12 +794,9 @@ const celestialBodies = [
     ]
   }
 ];
-
 const planetMeshes = [];
-
 celestialBodies.forEach((body) => {
   let material;
-
   if (body.texture) {
     const texturePath = `/${body.texture}`;
     const texture = loader.load(texturePath);
@@ -1119,31 +814,23 @@ celestialBodies.forEach((body) => {
       emissive: new THREE.Color(0.0, 0.0, 0.0),
     });
   }
-
   const geo = new THREE.SphereGeometry(body.size, 64, 64);
   const mesh = new THREE.Mesh(geo, material);
-
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-
   const pivot = new THREE.Object3D();
   pivot.add(mesh);
   mesh.position.x = body.dist;
-
   if (body.initialAngle !== undefined) {
     pivot.rotation.y = body.initialAngle;
   }
-
   scene.add(pivot);
-
   const orbitGeo = new THREE.RingGeometry(
     body.dist - 0.05,
     body.dist + 0.05,
     128
   );
-
   let orbitColor, glowIntensity, baseOpacity;
-
   if (body.type === 'dwarf') {
     orbitColor = new THREE.Color(0.8, 0.6, 0.0);
     glowIntensity = 0.08;
@@ -1171,12 +858,10 @@ celestialBodies.forEach((body) => {
       baseOpacity = 0.04;
     }
   }
-
   if (body.dist > 45) {
     glowIntensity *= 1.2;
     baseOpacity *= 1.3;
   }
-
   let orbitMat;
   try {
     orbitMat = new THREE.MeshBasicMaterial({
@@ -1197,11 +882,9 @@ celestialBodies.forEach((body) => {
       opacity: baseOpacity * 2,
     });
   }
-
   const orbit = new THREE.Mesh(orbitGeo, orbitMat);
   orbit.rotation.x = Math.PI / 2;
   orbit.position.y = -0.01;
-
   if (body.dist > 40) {
     orbit.userData = {
       originalEmissive: glowIntensity,
@@ -1209,9 +892,7 @@ celestialBodies.forEach((body) => {
       pulsePhase: Math.random() * Math.PI * 2
     };
   }
-
   scene.add(orbit);
-
   if (body.hasRings) {
     const ringTex = loader.load("/SaturnRing.png");
     const ringGeo = new THREE.RingGeometry(
@@ -1232,7 +913,6 @@ celestialBodies.forEach((body) => {
     ring.receiveShadow = true;
     mesh.add(ring);
   }
-
   const moons = [];
   if (body.moons && body.moons.length > 0) {
     body.moons.forEach((moonData) => {
@@ -1243,17 +923,13 @@ celestialBodies.forEach((body) => {
         metalness: 0.1
       });
       const moonMesh = new THREE.Mesh(moonGeo, moonMat);
-
       const moonPivot = new THREE.Object3D();
       moonPivot.add(moonMesh);
       moonMesh.position.x = moonData.dist;
-
       if (moonData.initialAngle !== undefined) {
         moonPivot.rotation.y = moonData.initialAngle;
       }
-
       mesh.add(moonPivot);
-
       moons.push({
         mesh: moonMesh,
         pivot: moonPivot,
@@ -1261,7 +937,6 @@ celestialBodies.forEach((body) => {
       });
     });
   }
-
   planetMeshes.push({
     mesh,
     pivot,
@@ -1271,57 +946,44 @@ celestialBodies.forEach((body) => {
     orbit: orbit
   });
 });
-
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
   0.5,
   0.6,
   0.05
 );
-
 bloomPass.strength = 0.5;
 bloomPass.radius = 0.6;
 bloomPass.threshold = 0.05;
-
 composer.addPass(bloomPass);
-
 const outputPass = new OutputPass();
 composer.addPass(outputPass);
-
 function createDistantStars() {
   const starCount = 1500;
   const starPositions = new Float32Array(starCount * 3);
-
   for (let i = 0; i < starCount * 3; i += 3) {
     const radius = 150 + Math.random() * 100;
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.random() * Math.PI;
-
     starPositions[i] = radius * Math.sin(phi) * Math.cos(theta);
     starPositions[i + 1] = radius * Math.sin(phi) * Math.sin(theta);
     starPositions[i + 2] = radius * Math.cos(phi);
   }
-
   const starGeometry = new THREE.BufferGeometry();
   starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-
   const starMaterial = new THREE.PointsMaterial({
     color: new THREE.Color(1.0, 1.0, 1.0),
     size: 0.7,
     transparent: true,
     opacity: 0.9
   });
-
   const stars = new THREE.Points(starGeometry, starMaterial);
   scene.add(stars);
   return stars;
 }
-
 const distantStars = createDistantStars();
-
 let frameCount = 0;
 let animationSpeed = 0.4;
 let isPaused = false;
@@ -1336,7 +998,6 @@ let followingPlanet = null;
 let followOffset = new THREE.Vector3(10, 5, 10);
 let lastPlanetPosition = new THREE.Vector3();
 let userCameraOffset = new THREE.Vector3();
-
 function createPlanetLabels() {
   planetMeshes.forEach((planetObj, index) => {
     const body = celestialBodies[index];
@@ -1345,7 +1006,6 @@ function createPlanetLabels() {
     labelDiv.textContent = toTitleCase(body.name);
     labelDiv.style.display = 'none';
     document.body.appendChild(labelDiv);
-
     planetLabels.push({
       element: labelDiv,
       planetMesh: planetObj.mesh,
@@ -1353,21 +1013,16 @@ function createPlanetLabels() {
     });
   });
 }
-
 function updatePlanetLabels() {
   if (!showPlanetLabels) return;
-
   planetLabels.forEach(label => {
     const vector = new THREE.Vector3();
     label.planetMesh.getWorldPosition(vector);
     vector.project(camera);
-
     const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
     const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
-
     label.element.style.left = x + 'px';
     label.element.style.top = (y - 20) + 'px';
-
     if (vector.z > 1) {
       label.element.style.display = 'none';
     } else {
@@ -1375,10 +1030,8 @@ function updatePlanetLabels() {
     }
   });
 }
-
 let showMoonLabels = false;
 const moonLabels = [];
-
 function createMoonLabels() {
   planetMeshes.forEach((planetObj, planetIndex) => {
     const body = celestialBodies[planetIndex];
@@ -1389,7 +1042,6 @@ function createMoonLabels() {
         labelDiv.textContent = toTitleCase(moonData.name);
         labelDiv.style.display = 'none';
         document.body.appendChild(labelDiv);
-
         moonLabels.push({
           element: labelDiv,
           moonMesh: planetObj.moons[moonIndex].mesh,
@@ -1399,21 +1051,16 @@ function createMoonLabels() {
     }
   });
 }
-
 function updateMoonLabels() {
   if (!showMoonLabels) return;
-
   moonLabels.forEach(label => {
     const vector = new THREE.Vector3();
     label.moonMesh.getWorldPosition(vector);
     vector.project(camera);
-
     const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
     const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
-
     label.element.style.left = x + 'px';
     label.element.style.top = (y - 15) + 'px';
-
     if (vector.z > 1) {
       label.element.style.display = 'none';
     } else {
@@ -1421,44 +1068,34 @@ function updateMoonLabels() {
     }
   });
 }
-
 createPlanetLabels();
 createMoonLabels();
-
 function animate() {
   requestAnimationFrame(animate);
-
   if (frameCount % 60 === 0) {
     console.log(`Animation Running. Frame: ${frameCount}, Paused: ${isPaused}, Speed: ${animationSpeed}`);
   }
   frameCount++;
-
   if (!isPaused) {
     let realTimeMultiplier = animationSpeed === 0 ? 0.0001 : animationSpeed;
-
     if (animationSpeed === 0) {
       currentDate = new Date();
     } else {
       const deltaTime = timePerFrame * realTimeMultiplier / 60;
       currentDate.setTime(currentDate.getTime() + deltaTime);
     }
-
     sun.rotation.y += 0.002 * realTimeMultiplier;
-
     planetMeshes.forEach((p) => {
       const cinematicFactor = 1.0;
       p.pivot.rotation.y += p.speed * realTimeMultiplier * cinematicFactor;
       p.mesh.rotation.y += 0.01 * realTimeMultiplier * cinematicFactor;
-
       if (p.orbit && p.orbit.userData && p.orbit.userData.pulseSpeed) {
         try {
           const time = Date.now() * 0.001;
           const pulse = Math.sin(time * p.orbit.userData.pulseSpeed + p.orbit.userData.pulsePhase) * 0.3 + 0.7;
-
           if (p.orbit.material.emissiveIntensity !== undefined) {
             p.orbit.material.emissiveIntensity = p.orbit.userData.originalEmissive * pulse;
           }
-
           if (!p.orbit.userData.originalOpacity) {
             p.orbit.userData.originalOpacity = p.orbit.material.opacity;
           }
@@ -1467,7 +1104,6 @@ function animate() {
           console.warn("Orbit Pulsing Animation Error:", error);
         }
       }
-
       if (p.moons && p.moons.length > 0) {
         p.moons.forEach((moon) => {
           const moonCinematic = 0.1;
@@ -1477,33 +1113,26 @@ function animate() {
         });
       }
     });
-
     Object.values(asteroidBelts).forEach(belt => {
       belt.forEach((asteroid) => {
         asteroid.mesh.rotation.x += asteroid.rotationSpeed.x * realTimeMultiplier;
         asteroid.mesh.rotation.y += asteroid.rotationSpeed.y * realTimeMultiplier;
         asteroid.mesh.rotation.z += asteroid.rotationSpeed.z * realTimeMultiplier;
-
         asteroid.angle += asteroid.orbitSpeed * realTimeMultiplier;
         asteroid.mesh.position.x = Math.cos(asteroid.angle) * asteroid.radius;
         asteroid.mesh.position.z = Math.sin(asteroid.angle) * asteroid.radius;
       });
     });
-
     distantStars.rotation.y += 0.0001 * realTimeMultiplier;
   }
-
   controls.update();
-
   if (followingPlanet) {
     const planetPos = new THREE.Vector3();
     followingPlanet.mesh.getWorldPosition(planetPos);
-
     if (followingType === 'sun') {
       controls.target.copy(planetPos);
     } else {
       const planetMovement = planetPos.clone().sub(lastPlanetPosition);
-
       if (!lastPlanetPosition.equals(new THREE.Vector3(0, 0, 0))) {
         camera.position.add(planetMovement);
         controls.target.add(planetMovement);
@@ -1512,18 +1141,14 @@ function animate() {
         controls.target.copy(planetPos);
       }
     }
-
     lastPlanetPosition.copy(planetPos);
   }
-
   updatePlanetLabels();
   updateMoonLabels();
-
   const distanceToSun = camera.position.distanceTo(sun.position);
   const maxDistance = 100;
   const minDistance = 10;
   const normalizedDistance = Math.max(0, Math.min(1, (distanceToSun - minDistance) / (maxDistance - minDistance)));
-
   if (bloomPass && !isBloomManual) {
     bloomPass.strength = 0.5 + (1 - normalizedDistance) * 1.0;
     bloomPass.radius = 0.6 + (1 - normalizedDistance) * 0.4;
@@ -1531,7 +1156,6 @@ function animate() {
     bloomPass.strength = manualBloomStrength;
     bloomPass.radius = 0.6 + (1 - normalizedDistance) * 0.2;
   }
-
   try {
     composer.render();
   } catch (error) {
@@ -1539,23 +1163,9 @@ function animate() {
     renderer.render(scene, camera);
   }
 }
-
-async function initializeRealObjects() {
-  try {
-    console.log("Initializing Real-Time NASA Data...");
-    await addRealAsteroids();
-    await addComets();
-    console.log("Real-Time NASA Data Initialization Complete");
-  } catch (error) {
-    console.error("Error Initializing Real Objects:", error);
-  }
-}
-
 setTimeout(() => {
   animate();
-  initializeRealObjects();
 }, 200);
-
 const speedControl = document.getElementById('speedControl');
 const speedValue = document.getElementById('speedValue');
 if (speedControl && speedValue) {
@@ -1571,32 +1181,24 @@ if (speedControl && speedValue) {
     speedValue.textContent = toTitleCase(speedValue.textContent);
   });
 }
-
-const hideUIBtn = document.getElementById('hideUIBtn');
-const showUIBtn = document.getElementById('showUIBtn');
+const hideUIBtn = document.getElementById('hideUiBtn');
+const showUIBtn = document.getElementById('showUiBtn');
 const uiControls = document.getElementById('uiControls');
-const celestialPanel = document.querySelector('.celestialPanel');
-const infoPanel = document.querySelector('.info');
-
+const planetInfoCard = document.getElementById('planetInfoCard');
 if (hideUIBtn && showUIBtn && uiControls) {
   hideUIBtn.addEventListener('click', () => {
     uiControls.classList.add('uiHidden');
-    if (celestialPanel) celestialPanel.classList.add('uiHidden');
-    if (infoPanel) infoPanel.classList.add('uiHidden');
+    if (planetInfoCard) planetInfoCard.classList.add('uiHidden');
     showUIBtn.style.display = 'block';
   });
-
   showUIBtn.addEventListener('click', () => {
     uiControls.classList.remove('uiHidden');
-    if (celestialPanel) celestialPanel.classList.remove('uiHidden');
-    if (infoPanel) infoPanel.classList.remove('uiHidden');
+    if (planetInfoCard) planetInfoCard.classList.remove('uiHidden');
     showUIBtn.style.display = 'none';
   });
 }
-
 let isBloomManual = false;
 let manualBloomStrength = 0.5;
-
 const bloomControl = document.getElementById('bloomControl');
 const bloomValue = document.getElementById('bloomValue');
 if (bloomControl && bloomValue) {
@@ -1605,7 +1207,6 @@ if (bloomControl && bloomValue) {
   bloomPass.strength = 0.5;
   bloomControl.value = 0.5;
   bloomValue.textContent = '0.5';
-
   bloomControl.addEventListener('input', (e) => {
     const strength = parseFloat(e.target.value);
     manualBloomStrength = strength;
@@ -1620,14 +1221,12 @@ if (bloomControl && bloomValue) {
     console.log(`Manual Bloom Set To: ${strength}`);
   });
 }
-
 const bloomModeBtn = document.getElementById('bloomModeBtn');
 if (bloomModeBtn) {
   bloomModeBtn.addEventListener('click', () => {
     isBloomManual = !isBloomManual;
     bloomModeBtn.textContent = toTitleCase(isBloomManual ? 'Auto Bloom' : 'Manual Bloom');
     bloomModeBtn.classList.toggle('active', isBloomManual);
-
     if (!isBloomManual) {
       console.log('Switched To Automatic Bloom Mode');
     } else {
@@ -1635,11 +1234,9 @@ if (bloomModeBtn) {
       bloomPass.strength = manualBloomStrength;
     }
   });
-
   bloomModeBtn.textContent = toTitleCase(isBloomManual ? 'Auto Bloom' : 'Manual Bloom');
   bloomModeBtn.classList.toggle('active', isBloomManual);
 }
-
 const pauseBtn = document.getElementById('pauseBtn');
 if (pauseBtn) {
   pauseBtn.addEventListener('click', () => {
@@ -1648,13 +1245,11 @@ if (pauseBtn) {
     pauseBtn.classList.toggle('active', isPaused);
   });
 }
-
 const orbitsBtn = document.getElementById('orbitsBtn');
 if (orbitsBtn) {
   orbitsBtn.addEventListener('click', () => {
     showOrbits = !showOrbits;
     orbitsBtn.classList.toggle('active', showOrbits);
-
     planetMeshes.forEach(planet => {
       if (planet.orbit) {
         planet.orbit.visible = showOrbits;
@@ -1662,61 +1257,41 @@ if (orbitsBtn) {
     });
   });
 }
-
-const mainAsteroidsBtn = document.getElementById('mainAsteroidsBtn');
-if (mainAsteroidsBtn) {
-  mainAsteroidsBtn.addEventListener('click', () => {
-    const isVisible = !asteroidBelts.main[0]?.mesh.visible;
-    mainAsteroidsBtn.classList.toggle('active', isVisible);
-
-    asteroidBelts.main.forEach(asteroid => {
-      asteroid.mesh.visible = isVisible;
-    });
-  });
-}
-
 const trojansBtn = document.getElementById('trojansBtn');
 if (trojansBtn) {
   trojansBtn.addEventListener('click', () => {
     const isVisible = !asteroidBelts.trojans[0]?.mesh.visible;
     trojansBtn.classList.toggle('active', isVisible);
-
     asteroidBelts.trojans.forEach(asteroid => {
       asteroid.mesh.visible = isVisible;
     });
   });
 }
-
 const kuiperBtn = document.getElementById('kuiperBtn');
 if (kuiperBtn) {
   kuiperBtn.addEventListener('click', () => {
     const isVisible = !asteroidBelts.kuiper[0]?.mesh.visible;
     kuiperBtn.classList.toggle('active', isVisible);
-
     asteroidBelts.kuiper.forEach(asteroid => {
       asteroid.mesh.visible = isVisible;
     });
   });
 }
-
 const scatteredBtn = document.getElementById('scatteredBtn');
 if (scatteredBtn) {
   scatteredBtn.addEventListener('click', () => {
     const isVisible = !asteroidBelts.scattered[0]?.mesh.visible;
     scatteredBtn.classList.toggle('active', isVisible);
-
     asteroidBelts.scattered.forEach(asteroid => {
       asteroid.mesh.visible = isVisible;
     });
   });
 }
-
 const moonsBtn = document.getElementById('moonsBtn');
 if (moonsBtn) {
   moonsBtn.addEventListener('click', () => {
     showMoons = !showMoons;
     moonsBtn.classList.toggle('active', showMoons);
-
     planetMeshes.forEach(planet => {
       if (planet.moons) {
         planet.moons.forEach(moon => {
@@ -1726,57 +1301,28 @@ if (moonsBtn) {
     });
   });
 }
-
 const labelToggle = document.getElementById('labelToggle');
 if (labelToggle) {
   labelToggle.addEventListener('click', () => {
     showPlanetLabels = !showPlanetLabels;
     labelToggle.classList.toggle('active', showPlanetLabels);
     labelToggle.textContent = toTitleCase(showPlanetLabels ? 'Hide Planet Names' : 'Show Planet Names');
-
     planetLabels.forEach(label => {
       label.element.style.display = showPlanetLabels ? 'block' : 'none';
     });
   });
 }
-
 const moonLabelToggle = document.getElementById('moonLabelToggle');
 if (moonLabelToggle) {
   moonLabelToggle.addEventListener('click', () => {
     showMoonLabels = !showMoonLabels;
     moonLabelToggle.classList.toggle('active', showMoonLabels);
     moonLabelToggle.textContent = toTitleCase(showMoonLabels ? 'Hide Moon Names' : 'Show Moon Names');
-
     moonLabels.forEach(label => {
       label.element.style.display = showMoonLabels ? 'block' : 'none';
     });
   });
 }
-
-const realAsteroidsBtn = document.getElementById('realAsteroidsBtn');
-if (realAsteroidsBtn) {
-  realAsteroidsBtn.addEventListener('click', () => {
-    const isVisible = !realAsteroids[0]?.visible;
-    realAsteroidsBtn.classList.toggle('active', isVisible);
-
-    realAsteroids.forEach(asteroid => {
-      asteroid.visible = isVisible;
-    });
-  });
-}
-
-const cometsBtn = document.getElementById('cometsBtn');
-if (cometsBtn) {
-  cometsBtn.addEventListener('click', () => {
-    const isVisible = !cometObjects[0]?.visible;
-    cometsBtn.classList.toggle('active', isVisible);
-
-    cometObjects.forEach(comet => {
-      comet.visible = isVisible;
-    });
-  });
-}
-
 const allAsteroidsBtn = document.getElementById('allAsteroidsBtn');
 if (allAsteroidsBtn) {
   allAsteroidsBtn.addEventListener('click', () => {
@@ -1787,22 +1333,17 @@ if (allAsteroidsBtn) {
       !asteroidBelts.kuiper[0]?.mesh.visible ||
       !asteroidBelts.scattered[0]?.mesh.visible ||
       !asteroidBelts.oort[0]?.mesh.visible;
-
     allAsteroidsBtn.classList.toggle('active', allVisible);
-
     Object.values(asteroidBelts).forEach(belt => {
       belt.forEach(asteroid => {
         asteroid.mesh.visible = allVisible;
       });
     });
-
-    if (mainAsteroidsBtn) mainAsteroidsBtn.classList.toggle('active', allVisible);
     if (trojansBtn) trojansBtn.classList.toggle('active', allVisible);
     if (kuiperBtn) kuiperBtn.classList.toggle('active', allVisible);
     if (scatteredBtn) scatteredBtn.classList.toggle('active', allVisible);
   });
 }
-
 const planetList = document.getElementById('planetList');
 if (planetList) {
   const groupedBodies = {
@@ -1811,37 +1352,30 @@ if (planetList) {
     asteroid: celestialBodies.filter(b => b.type === 'asteroid'),
     tno: celestialBodies.filter(b => b.type === 'tno')
   };
-
   const typeLabels = {
     planet: 'Planets',
     dwarf: 'Dwarf Planets',
     asteroid: 'Major Asteroids',
     tno: 'Trans-Neptunian Objects'
   };
-
   Object.entries(groupedBodies).forEach(([type, bodies]) => {
     if (bodies.length === 0) return;
-
     const categoryHeader = document.createElement('div');
     categoryHeader.className = 'categoryHeader';
     categoryHeader.innerHTML = `<strong>${toTitleCase(typeLabels[type])}</strong>`;
     planetList.appendChild(categoryHeader);
-
     bodies.forEach((body, localIndex) => {
       const globalIndex = celestialBodies.indexOf(body);
       const planetItem = document.createElement('div');
       planetItem.className = `planetItem ${body.type}`;
-
       const moonText = body.moons && body.moons.length > 0 ?
         `<br><small>Moons: ${body.moons.length}</small>` : '';
-
       planetItem.innerHTML = `
         <strong>${toTitleCase(body.name)}</strong>
         <br><small>Distance: ${body.dist} AU | Size: ${body.size}</small>
         <br><small>Discovered: ${body.discoveryYear}</small>
         ${moonText}
       `;
-
       planetItem.addEventListener('click', () => {
         const planet = planetMeshes[globalIndex];
         if (planet) {
@@ -1857,12 +1391,10 @@ if (planetList) {
           controls.update();
         }
       });
-
       planetList.appendChild(planetItem);
     });
   });
 }
-
 function showPlanetInfoCard(body, planetIndex) {
   const card = document.getElementById('planetInfoCard');
   const planetName = document.getElementById('planetName');
@@ -1876,10 +1408,8 @@ function showPlanetInfoCard(body, planetIndex) {
   const moonsSection = document.getElementById('moonsSection');
   const moonCount = document.getElementById('moonCount');
   const moonsContainer = document.getElementById('moonsContainer');
-
   planetIcon.textContent = '';
   planetName.textContent = toTitleCase(body.name);
-
   const typeLabels = {
     'planet': 'Planet',
     'dwarf': 'Dwarf Planet',
@@ -1887,7 +1417,6 @@ function showPlanetInfoCard(body, planetIndex) {
     'tno': 'Tno'
   };
   planetTypeBadge.textContent = toTitleCase(typeLabels[body.type] || 'Celestial Body');
-
   const orbitalPeriodYears = Math.sqrt(Math.pow(body.dist, 3));
   if (orbitalPeriodYears < 1) {
     orbitalPeriod.textContent = `${Math.round(orbitalPeriodYears * 365)} Days`;
@@ -1896,24 +1425,18 @@ function showPlanetInfoCard(body, planetIndex) {
   } else {
     orbitalPeriod.textContent = `${Math.round(orbitalPeriodYears)} Years`;
   }
-
   sizeRelative.textContent = `${body.size}x Earth`;
   distanceFromSun.textContent = `${body.dist} AU`;
   discoveryYear.textContent = body.discoveryYear;
   planetDescription.textContent = body.info;
-
   if (body.moons && body.moons.length > 0) {
     moonsSection.style.display = 'block';
     moonCount.textContent = body.moons.length;
-
     moonsContainer.innerHTML = '';
-
     body.moons.forEach((moon, moonIndex) => {
       const moonItem = document.createElement('div');
       moonItem.className = 'moonItem';
-
       const orbitalPeriodDays = moon.speed > 0 ? (2 * Math.PI / moon.speed).toFixed(1) : 'Unknown';
-
       moonItem.innerHTML = `
         <div class="moonName">${toTitleCase(moon.name)}</div>
         <div class="moonInfo">
@@ -1925,23 +1448,19 @@ function showPlanetInfoCard(body, planetIndex) {
           <button class="followMoonBtn">Follow</button>
         </div>
       `;
-
       moonItem.style.cursor = 'pointer';
       const moonNameDiv = moonItem.querySelector('.moonName');
       const moonInfoDiv = moonItem.querySelector('.moonInfo');
-
       moonNameDiv.addEventListener('click', () => {
         if (moon.info) {
           alert(`${toTitleCase(moon.name)}\n\n${moon.info}`);
         }
       });
-
       moonInfoDiv.addEventListener('click', () => {
         if (moon.info) {
           alert(`${toTitleCase(moon.name)}\n\n${moon.info}`);
         }
       });
-
       const followMoonBtn = moonItem.querySelector('.followMoonBtn');
       followMoonBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -1951,29 +1470,22 @@ function showPlanetInfoCard(body, planetIndex) {
           hidePlanetInfoCard();
         }
       });
-
       moonsContainer.appendChild(moonItem);
     });
   } else {
     moonsSection.style.display = 'none';
   }
-
   card.style.display = 'block';
-
   updateFollowButtonState(planetIndex);
 }
-
 let currentPlanetIndex = null;
 let followingTarget = null;
 let followingType = null;
-
 function updateFollowButtonState(planetIndex) {
   const followBtn = document.getElementById('followPlanetBtn');
   const stopFollowBtn = document.getElementById('stopFollowBtn');
   const currentPlanet = planetMeshes[planetIndex];
-
   currentPlanetIndex = planetIndex;
-
   if (followingTarget === currentPlanet && followingType === 'planet') {
     followBtn.textContent = 'Stop Following';
     followBtn.classList.add('following');
@@ -1990,11 +1502,9 @@ function updateFollowButtonState(planetIndex) {
     }
   }
 }
-
 function followPlanet(planetIndex) {
   const body = celestialBodies[planetIndex];
   const planet = planetMeshes[planetIndex];
-
   followingTarget = planet;
   followingType = 'planet';
   followingPlanet = planet;
@@ -2002,16 +1512,12 @@ function followPlanet(planetIndex) {
   followOffset.set(distance, distance * 0.5, distance);
   lastPlanetPosition.set(0, 0, 0);
   userCameraOffset.set(0, 0, 0);
-
   controls.enableZoom = true;
   controls.minDistance = distance * 0.5;
   controls.maxDistance = distance * 3;
-
   updateFollowButtonState(planetIndex);
-
   console.log(`Now Following ${body.name}`);
 }
-
 function followMoon(moonMesh, moonData, parentPlanetName) {
   followingTarget = moonMesh;
   followingType = 'moon';
@@ -2020,85 +1526,65 @@ function followMoon(moonMesh, moonData, parentPlanetName) {
   followOffset.set(distance, distance * 0.5, distance);
   lastPlanetPosition.set(0, 0, 0);
   userCameraOffset.set(0, 0, 0);
-
   controls.enableZoom = true;
   controls.minDistance = distance * 0.3;
   controls.maxDistance = distance * 4;
-
   const stopFollowBtn = document.getElementById('stopFollowBtn');
   if (stopFollowBtn) {
     stopFollowBtn.style.display = 'block';
     stopFollowBtn.classList.add('active');
   }
-
   console.log(`Now Following ${moonData.name} Of ${parentPlanetName}`);
 }
-
 function followSun() {
   followingTarget = sun;
   followingType = 'sun';
   followingPlanet = { mesh: sun };
-
   const sunPos = new THREE.Vector3();
   sun.getWorldPosition(sunPos);
-
   camera.position.set(sunPos.x + 25, sunPos.y + 12, sunPos.z + 25);
   controls.target.copy(sunPos);
-
   controls.enableZoom = true;
   controls.minDistance = 10;
   controls.maxDistance = 100;
-
   lastPlanetPosition.set(0, 0, 0);
   userCameraOffset.set(0, 0, 0);
-
   const stopFollowBtn = document.getElementById('stopFollowBtn');
   if (stopFollowBtn) {
     stopFollowBtn.style.display = 'block';
     stopFollowBtn.classList.add('active');
   }
-
   console.log('Now Following The Sun (Zoom Enabled)');
 }
-
 function stopFollowingPlanet() {
   followingPlanet = null;
   followingTarget = null;
   followingType = null;
   lastPlanetPosition.set(0, 0, 0);
   userCameraOffset.set(0, 0, 0);
-
   camera.position.set(0, 30, 70);
   controls.target.set(0, 0, 0);
   controls.reset();
-
   controls.enableZoom = true;
   controls.minDistance = 0.1;
   controls.maxDistance = 1000;
-
   hidePlanetInfoCard();
-
   const followBtn = document.getElementById('followPlanetBtn');
   const stopFollowBtn = document.getElementById('stopFollowBtn');
-
   if (followBtn) {
     followBtn.textContent = 'Follow Planet';
     followBtn.classList.remove('following');
   }
-
   if (stopFollowBtn) {
     stopFollowBtn.style.display = 'none';
     stopFollowBtn.classList.remove('active');
   }
-
   console.log('Stopped Following And Reset View');
 }
-
 function hidePlanetInfoCard() {
   const card = document.getElementById('planetInfoCard');
   card.style.display = 'none';
 }
-
 function onMouseClick(event) {
   if (event.target.closest('.controls') ||
     event.target.closest('.celestialPanel') ||
@@ -2106,17 +1592,12 @@ function onMouseClick(event) {
     event.target.closest('.planetInfoCard')) {
     return;
   }
-
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
   raycaster.setFromCamera(mouse, camera);
-
   let clickableObjects = [];
-
   const planetMeshObjects = planetMeshes.map(p => p.mesh);
   clickableObjects = clickableObjects.concat(planetMeshObjects);
-
   let moonMeshes = [];
   planetMeshes.forEach((planetObj, planetIndex) => {
     if (planetObj.moons && planetObj.moons.length > 0) {
@@ -2130,19 +1611,14 @@ function onMouseClick(event) {
       });
     }
   });
-
   clickableObjects.push(sun);
-
   const intersects = raycaster.intersectObjects(clickableObjects);
-
   if (intersects.length > 0) {
     const intersectedObject = intersects[0].object;
-
     if (intersectedObject === sun) {
       followSun();
       return;
     }
-
     const planetIndex = planetMeshObjects.indexOf(intersectedObject);
     if (planetIndex !== -1) {
       const body = celestialBodies[planetIndex];
@@ -2152,14 +1628,10 @@ function onMouseClick(event) {
     hidePlanetInfoCard();
   }
 }
-
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
-
 window.addEventListener('click', onMouseClick);
-
 document.getElementById('closePlanetInfo').addEventListener('click', hidePlanetInfoCard);
-
 document.getElementById('followPlanetBtn').addEventListener('click', () => {
   if (currentPlanetIndex !== null) {
     if (followingTarget === planetMeshes[currentPlanetIndex] && followingType === 'planet') {
@@ -2169,27 +1641,23 @@ document.getElementById('followPlanetBtn').addEventListener('click', () => {
     }
   }
 });
-
 const stopFollowBtn = document.getElementById('stopFollowBtn');
 if (stopFollowBtn) {
   stopFollowBtn.addEventListener('click', () => {
     stopFollowingPlanet();
   });
 }
-
 const followSunBtn = document.getElementById('followSunBtn');
 if (followSunBtn) {
   followSunBtn.addEventListener('click', () => {
     followSun();
   });
 }
-
 document.addEventListener('DOMContentLoaded', () => {
   const originalPlanetItemHandler = planetItem => {
     const originalHandler = planetItem.onclick;
     planetItem.onclick = function (event) {
       if (originalHandler) originalHandler.call(this, event);
-
       const planetName = this.querySelector('strong').textContent;
       const planetIndex = celestialBodies.findIndex(body => toTitleCase(body.name) === planetName);
       if (planetIndex !== -1) {
@@ -2198,7 +1666,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   };
 });
-
 window.addEventListener('keydown', (event) => {
   switch (event.key.toLowerCase()) {
     case ' ':
@@ -2218,12 +1685,10 @@ window.addEventListener('keydown', (event) => {
       break;
     case 'a':
       const asteroidButtons = [
-        document.getElementById('mainAsteroidsBtn'),
         document.getElementById('trojansBtn'),
         document.getElementById('kuiperBtn'),
         document.getElementById('scatteredBtn')
       ];
-
       let foundVisible = false;
       for (let i = 0; i < asteroidButtons.length; i++) {
         if (asteroidButtons[i] && asteroidButtons[i].classList.contains('active')) {
@@ -2236,7 +1701,6 @@ window.addEventListener('keydown', (event) => {
           break;
         }
       }
-
       if (!foundVisible && asteroidButtons[0]) {
         asteroidButtons[0].click();
       }
@@ -2285,7 +1749,6 @@ window.addEventListener('keydown', (event) => {
         bloomModeBtn.textContent = toTitleCase(isBloomManual ? 'Auto Bloom' : 'Manual Bloom');
         bloomModeBtn.classList.toggle('active', isBloomManual);
       }
-
       if (!isBloomManual) {
         console.log('Switched To Automatic Bloom Mode (Dynamic With Distance)');
       } else {
@@ -2295,7 +1758,6 @@ window.addEventListener('keydown', (event) => {
       break;
   }
 });
-
 controls.enablePan = true;
 controls.enableZoom = true;
 controls.enableRotate = true;
@@ -2306,9 +1768,7 @@ controls.maxPolarAngle = Math.PI;
 controls.autoRotate = false;
 controls.autoRotateSpeed = 0.3;
 controls.target.set(0, 0, 0);
-
 camera.position.set(0, 30, 70);
-
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
